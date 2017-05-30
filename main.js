@@ -52,15 +52,28 @@ function onLoginSuccess() {
     casper.waitForSelector('a', function then() {
       this.click('a');
     }, function timeout() {
+      this.echo('This frame has no link.');
     });
   }
   this.echo('Start clicking on the ads.');
-  this.each(iframes, function(self, iframe) {
-    if (casper.exists('iframe[name="' + iframe + '"]')) {
-      this.echo(iframe);
-      casper.withFrame(iframe, clickAd.bind(this));
+  var frame_index = 0;
+
+  // Function to make the clicking ad synchronous
+  function loadFrame() {
+    // Force the context because sometimes it is a child frame, not a main frame
+    this.page.switchToMainFrame();
+
+    if (frame_index >= iframes.length) {
+      return;
     }
-  });
+    casper.withFrame(iframes[frame_index], function() {
+      this.echo('Frame ' + frame_index + ' name: ' + this.page.frameName);
+      clickAd.bind(this)();
+    });
+    frame_index += 1;
+    casper.then(loadFrame);
+  };
+  loadFrame.bind(this)();
   this.echo('Clicking ads has ended.');
 }
 
