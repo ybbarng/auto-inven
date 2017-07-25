@@ -8,6 +8,11 @@ var account = require('account.json');
 
 var login_url = 'https://member.inven.co.kr/user/scorpio/mlogin';
 var main_url = 'http://www.inven.co.kr/webzine/';
+var attendance_url = 'http://imart.inven.co.kr/attendance/';
+
+casper.on('remote.alert', function(message) {
+  this.echo('Alert message: ' + message);
+});
 
 casper.start(login_url, function(response) {
   this.echo('Login page is loaded.');
@@ -37,44 +42,57 @@ casper.start(login_url, function(response) {
 });
 
 function onLoginSuccess() {
-  // comAdTopRight3,comAdHomeTop,comAdMidFull,comAdPopUp,comAdPromotion,
-  // comAdSky3,comAdTi,comAdSP1,comAdSP2,comAdSlide,comAdBackSkin,comAdTopSky
-  var iframes = this.evaluate(function() {
-    var iframes = document.querySelectorAll('iframe');
-    var iframe_names = [].map.call(iframes, function(iframe) {
-      return iframe.name;
-    }).filter(function(name) {
-      return name.indexOf('comAd') > -1;
-    });
-    return iframe_names;
-  });
-  function clickAd() {
-    casper.waitForSelector('a', function then() {
-      this.click('a');
-    }, function timeout() {
-      this.echo('This frame has no link.');
+
+  function attendanceCheck() {
+    this.echo('Attendance Check');
+    this.thenOpen(attendance_url, function() {
+      this.evaluate(function() {
+        document.querySelector('.attendBttn a').click();
+      });
     });
   }
-  this.echo('Start clicking on the ads.');
-  var frame_index = 0;
+  attendanceCheck.bind(this)();
 
-  // Function to make the clicking ad synchronous
-  function loadFrame() {
-    // Force the context because sometimes it is a child frame, not a main frame
-    this.page.switchToMainFrame();
-
-    if (frame_index >= iframes.length) {
-      return;
-    }
-    casper.withFrame(iframes[frame_index], function() {
-      this.echo('Frame ' + frame_index + ' name: ' + this.page.frameName);
-      clickAd.bind(this)();
+  this.thenOpen(main_url, function() {
+    // comAdTopRight3,comAdHomeTop,comAdMidFull,comAdPopUp,comAdPromotion,
+    // comAdSky3,comAdTi,comAdSP1,comAdSP2,comAdSlide,comAdBackSkin,comAdTopSky
+    var iframes = this.evaluate(function() {
+      var iframes = document.querySelectorAll('iframe');
+      var iframe_names = [].map.call(iframes, function(iframe) {
+        return iframe.name;
+      }).filter(function(name) {
+        return name.indexOf('comAd') > -1;
+      });
+      return iframe_names;
     });
-    frame_index += 1;
-    casper.then(loadFrame);
-  };
-  loadFrame.bind(this)();
-  this.echo('Clicking ads has ended.');
+    function clickAd() {
+      casper.waitForSelector('a', function then() {
+        this.click('a');
+      }, function timeout() {
+        this.echo('This frame has no link.');
+      });
+    }
+    this.echo('Start clicking on the ads.');
+    var frame_index = 0;
+
+    // Function to make the clicking ad synchronous
+    function loadFrame() {
+      // Force the context because sometimes it is a child frame, not a main frame
+      this.page.switchToMainFrame();
+
+      if (frame_index >= iframes.length) {
+        return;
+      }
+      casper.withFrame(iframes[frame_index], function() {
+        this.echo('Frame ' + frame_index + ' name: ' + this.page.frameName);
+        clickAd.bind(this)();
+      });
+      frame_index += 1;
+      casper.then(loadFrame);
+    };
+    loadFrame.bind(this)();
+    this.echo('Clicking ads has ended.');
+  });
 }
 
 casper.run();
